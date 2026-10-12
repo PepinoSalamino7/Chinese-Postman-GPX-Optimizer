@@ -2,76 +2,73 @@
 
 # Chinese Postman Optimizer
 
-**Optimize GPX road networks using the Chinese Postman Problem (CPP).**
+**v6.0 — Ultra-Precise Edition**
 
-A Python utility for generating efficient inspection routes while preserving the original geographic geometry of GPX tracks.
+Optimize GPX road networks with the Chinese Postman Problem (CPP), with a focus on preserving every original coordinate and road segment.
 
 </div>
 
 ---
 
-## Table of Contents
-
-- [Overview](#overview)
-- [Features](#features)
-- [Requirements](#requirements)
-- [Installation](#installation)
-- [Usage](#usage)
-- [Command-Line Arguments](#command-line-arguments)
-- [Input and Output](#input-and-output)
-- [Releases](#releases)
-
 ## Overview
 
-The **Chinese Postman Optimizer** processes GPX track data to calculate an efficient route that covers the edges of a road network while minimizing repeated traversal.
+Chinese Postman Optimizer is a Python command-line tool that processes GPX tracks and routes to generate an inspection route covering road-network edges while minimizing additional traversal.
 
-It is designed for spatial road networks where preserving geographic precision matters. The tool aims to retain original GPX coordinates and line geometries without unwanted coordinate merging or curve straightening.
+Version 6.0 focuses on coordinate precision: it does not snap or merge nearby coordinates. GPX track and route points are used to build a multigraph, and the resulting Eulerian circuit is exported as a new GPX track.
 
 ## Features
 
-- **Geographic precision** — preserves raw GPX node coordinates and original line geometries.
-- **Disconnected component handling** — optionally removes smaller disconnected sub-graphs.
-- **Edge validation** — generates summary statistics for edge coverage and missing segments after optimization.
-- **Batch processing** — supports individual GPX files, glob patterns, and directories.
-- **Parallel processing** — can process multiple routes or files in parallel.
-- **Checkpoint control** — allows progress checkpointing to be disabled.
+- **Exact coordinate handling** — no coordinate snapping or merging of distinct coordinates.
+- **GPX support** — reads tracks (`trk`), routes (`rte`), and waypoints (`wpt`).
+- **Dead-end backtracking** — adds return traversal along dead-end paths while retaining intermediate points.
+- **Chinese Postman optimization** — pairs odd-degree nodes using shortest paths and minimum-weight matching.
+- **Disconnected component options** — either connect components with straight-line bridges or keep only the largest component.
+- **Route validation** — reports edge coverage and potentially missing segments.
+- **Progress and statistics** — reports distances, processing time, route efficiency, warnings, and validation results.
+- **Batch processing** — accepts individual GPX files, directories, glob patterns, or a JSON configuration file.
+- **Parallel processing** — optionally processes multiple input files concurrently.
+- **Checkpointing** — saves progress and can be disabled.
+- **Terminal output** — supports `NO_COLOR` for environments where ANSI colors should be disabled.
 
 ## Requirements
 
 - Python 3.8 or newer
 - [`networkx`](https://networkx.org/)
 
+The script uses Python's standard library for GPX/XML handling, command-line parsing, JSON, file operations, and parallel processing.
+
 ## Installation
 
-1. Make sure Python 3.8 or newer is installed.
-2. Install the required dependency:
+1. Install Python 3.8 or newer.
+2. Install the dependency:
 
    ```bash
    pip install networkx
    ```
+3. Download or clone this repository.
+4. Put your GPX files in an input directory, or pass their paths as command-line arguments.
 
-3. Place `postman.py` and your input GPX files in the appropriate locations.
-4. Run the script using one of the examples below.
+## Quick Start
 
-## Usage
-
-Run these commands from the directory containing `postman.py`, unless you have configured another path.
-
-### Automatic input and output
+### Use the default input directory
 
 ```bash
 python postman.py
 ```
 
-Uses the script's configured default input and output locations.
+With no input arguments, the script looks for `.gpx` files in an `input/` directory next to `postman.py`. Output files are written to `./output/` by default.
 
-### Process a specific GPX file
+### Process one GPX file
 
 ```bash
-python postman.py input.gpx output.gpx
+python postman.py input.gpx
 ```
 
-Passes an input GPX file and an output GPX file to the script.
+### Process a directory
+
+```bash
+python postman.py ./routes/
+```
 
 ### Process files matching a glob pattern
 
@@ -79,67 +76,106 @@ Passes an input GPX file and an output GPX file to the script.
 python postman.py "*.gpx" --out-dir ./optimized/
 ```
 
-Processes files matching the pattern and writes generated GPX files to `./optimized/`.
-
-### Process a directory in parallel
+### Process files in parallel
 
 ```bash
 python postman.py ./routes/ --parallel
 ```
 
-Processes routes from the specified directory with parallel processing enabled.
-
-### Use a configuration file
+### Use a JSON configuration file
 
 ```bash
 python postman.py config.json
 ```
 
-Passes a JSON configuration file to the script.
+The JSON configuration file should contain an `inputs` array listing the input paths:
 
-### Disable checkpointing
-
-```bash
-python postman.py --no-checkpoint
+```json
+{
+  "inputs": [
+    "routes/route1.gpx",
+    "routes/route2.gpx"
+  ]
+}
 ```
 
-Disables progress checkpointing during execution.
-
-### Remove smaller disconnected components
+### Show help
 
 ```bash
-python postman.py --drop-components
+python postman.py --help
 ```
-
-Enables removal of smaller disconnected sub-graphs, retaining the largest connected component.
 
 ## Command-Line Arguments
 
-| Argument | Description |
-|---|---|
-| `input_path` | Optional path to a GPX file, a glob pattern, or a directory. |
-| `-o`, `--out-dir` | Sets the output directory for generated GPX files. |
-| `--drop-components` | Removes smaller disconnected sub-graphs and retains the largest connected component. |
-| `--no-checkpoint` | Disables progress checkpointing during execution. |
-| `--parallel` | Enables parallel processing for multiple routes or files. |
+| Argument | Description | Default |
+|---|---|---|
+| `inputs` | Zero or more GPX files, directories, glob patterns, or a JSON configuration file. | Searches `input/*.gpx` next to the script |
+| `-o`, `--out-dir` | Output directory for optimized GPX files. | `./output` |
+| `-p`, `--parallel` | Process multiple files in parallel when more than one task is pending. | Disabled |
+| `-w`, `--workers` | Number of parallel worker processes. | Number of CPUs reported by Python |
+| `-r`, `--resume` | Resume-related option declared by the CLI. See note below. | Disabled |
+| `-c`, `--clear-checkpoint` | Clear the saved checkpoint. If used without input files, exits after clearing. | Disabled |
+| `--checkpoint` | Enable checkpointing. | Enabled |
+| `--no-checkpoint` | Disable checkpointing. | — |
+| `--bridge-components` | Keep disconnected components and connect them using straight-line bridges. | Enabled |
+| `--drop-components` | Keep only the largest connected component; smaller components are excluded. | Disabled |
 
-> **Note:** The available arguments and their exact behavior depend on the implementation in `postman.py`. Run `python postman.py --help` if supported by your version to view the script's built-in help.
+> **Implementation note:** `--resume` is defined in the command-line parser, but the current main processing logic does not explicitly use this flag to change task selection.
 
-## Input and Output
+## Output
 
-- **Input:** GPX files containing track or road-network data.
-- **Output:** Optimized GPX route files, written to the configured output location.
+Generated files are written to the selected output directory. Each output filename is prefixed with `optimized_`, for example:
 
-The exact output filenames, directory defaults, and validation reports depend on the script's configuration and implementation.
+```text
+output/
+└── optimized_route.gpx
+```
+
+The exported GPX contains an optimized track. The script prints a summary including success status, route distance, processing time, and edge-validation counts.
+
+## Disconnected Components
+
+By default, the optimizer attempts to retain and connect disconnected components. It chooses a connection order using a nearest-component strategy and inserts straight-line links between selected points.
+
+To keep only the largest component:
+
+```bash
+python postman.py ./routes/ --drop-components
+```
+
+**Important:** Straight-line bridges may not follow real roads. The script reports when these links are added, so inspect the resulting GPX before using it for navigation.
+
+## Checkpointing
+
+Checkpointing is enabled by default. Progress is stored in `.postman_checkpoint.json` next to the script.
+
+Disable checkpointing for a run:
+
+```bash
+python postman.py ./routes/ --no-checkpoint
+```
+
+Clear the saved checkpoint:
+
+```bash
+python postman.py --clear-checkpoint
+```
 
 ## Releases
 
-For stable releases and packaged versions, visit the repository's [**Releases**](../../releases) page.
+See the repository's [Releases](../../releases) page for published versions and release notes.
+
+## Limitations
+
+- The tool processes the geometry represented in the input GPX data; it does not fetch missing roads from an external map service.
+- When disconnected components are bridged, straight-line connections can be created that do not correspond to actual roads.
+- The route-validation implementation checks whether original coordinate-pair edges appear in the generated route. Treat its results as a diagnostic rather than a formal proof of complete geometric coverage.
+- Test the output GPX in your intended mapping or navigation software before relying on it.
 
 ---
 
 <div align="center">
 
-Made for efficient GPX road-network optimization.
+Made for precise GPX road-network processing.
 
 </div>
