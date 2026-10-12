@@ -2,40 +2,59 @@
 
 # Chinese Postman Optimizer
 
-**v6.0 — Ultra-Precise Edition**
+**A personal project for turning OpenStreetMap street data into practical routes.**
 
-Optimize GPX road networks with the Chinese Postman Problem (CPP), with a focus on preserving every original coordinate and road segment.
+Built around a real use case: taking a town or city's street network, exporting it from Overpass Turbo as GPX, optimizing the route, and importing it into the Suunto app for use on a Suunto 5 watch.
 
 </div>
 
 ---
 
-## Overview
+## Why I made this
 
-Chinese Postman Optimizer is a Python command-line tool that processes GPX tracks and routes to generate an inspection route covering road-network edges while minimizing additional traversal.
+I originally made this tool for myself.
 
-Version 6.0 focuses on coordinate precision: it does not snap or merge nearby coordinates. GPX track and route points are used to build a multigraph, and the resulting Eulerian circuit is exported as a new GPX track.
+I wanted to map the streets of a city or a small village and then follow that route with my Suunto 5. I used [Overpass Turbo](https://overpass-turbo.eu/) to export street data from [OpenStreetMap](https://www.openstreetmap.org/) as a GPX file, then processed that file with this Python script so I could import the result into the Suunto app and put it on my watch.
 
-## Features
+The idea is to create a route that covers the street network while avoiding unnecessary repeated sections as much as possible. That makes it useful for exploring an area systematically, rather than choosing a normal point-to-point route.
 
-- **Exact coordinate handling** — no coordinate snapping or merging of distinct coordinates.
-- **GPX support** — reads tracks (`trk`), routes (`rte`), and waypoints (`wpt`).
-- **Dead-end backtracking** — adds return traversal along dead-end paths while retaining intermediate points.
-- **Chinese Postman optimization** — pairs odd-degree nodes using shortest paths and minimum-weight matching.
-- **Disconnected component options** — either connect components with straight-line bridges or keep only the largest component.
-- **Route validation** — reports edge coverage and potentially missing segments.
-- **Progress and statistics** — reports distances, processing time, route efficiency, warnings, and validation results.
+I built it to solve my own mapping problem, but I figured other people might find it useful too — whether they have the same Suunto setup or just want to work with street networks for their own reasons.
+
+## What it does
+
+The tool uses the **Chinese Postman Problem (CPP)**, a route-planning problem focused on traversing every edge in a network while minimizing repeated travel.
+
+The script processes GPX track and route data and creates an optimized GPX track. It is designed to preserve the original coordinates rather than snapping nearby points together.
+
+### Current features
+
+- **Street-network route optimization** — creates a route intended to cover the edges in the imported network with as little repeated travel as possible.
+- **OpenStreetMap workflow** — works with GPX data you can export from Overpass Turbo.
+- **Coordinate precision** — avoids snapping or merging nearby coordinates.
+- **Disconnected components** — can connect separate parts of the network with straight-line bridges, or keep only the largest connected component.
+- **Route checks and statistics** — reports information about route distance, processing time, and edge coverage.
 - **Batch processing** — accepts individual GPX files, directories, glob patterns, or a JSON configuration file.
-- **Parallel processing** — optionally processes multiple input files concurrently.
-- **Checkpointing** — saves progress and can be disabled.
-- **Terminal output** — supports `NO_COLOR` for environments where ANSI colors should be disabled.
+- **Parallel processing** — can process multiple input files concurrently.
+- **Checkpointing** — saves progress during processing, with an option to disable it.
+
+> **A note on bridges:** when separate components are connected, the script may add straight-line links that do not follow actual streets. Check the generated route before using it.
+
+## My workflow
+
+This is the workflow I built the project around:
+
+1. Open [Overpass Turbo](https://overpass-turbo.eu/) and query the street network for a city, town, or village using OpenStreetMap data.
+2. Export the result as a GPX file.
+3. Run the GPX file through Chinese Postman Optimizer.
+4. Import the resulting GPX into the Suunto app, provided it is compatible with the app's current import options.
+5. Sync the route to a **Suunto 5** and use it while exploring the area.
+
+The exact Overpass Turbo query depends on the area and the type of streets you want to include. The output also depends on the geometry and connectivity of the source data.
 
 ## Requirements
 
 - Python 3.8 or newer
 - [`networkx`](https://networkx.org/)
-
-The script uses Python's standard library for GPX/XML handling, command-line parsing, JSON, file operations, and parallel processing.
 
 ## Installation
 
@@ -45,12 +64,12 @@ The script uses Python's standard library for GPX/XML handling, command-line par
    ```bash
    pip install networkx
    ```
-3. Download or clone this repository.
-4. Put your GPX files in an input directory, or pass their paths as command-line arguments.
+3. Clone or download this repository.
+4. Put your GPX files in an input directory, or pass their paths to the script.
 
-## Quick Start
+## Quick start
 
-### Use the default input directory
+### Process the default input directory
 
 ```bash
 python postman.py
@@ -70,13 +89,13 @@ python postman.py input.gpx
 python postman.py ./routes/
 ```
 
-### Process files matching a glob pattern
+### Process files matching a pattern
 
 ```bash
 python postman.py "*.gpx" --out-dir ./optimized/
 ```
 
-### Process files in parallel
+### Process multiple files in parallel
 
 ```bash
 python postman.py ./routes/ --parallel
@@ -88,7 +107,7 @@ python postman.py ./routes/ --parallel
 python postman.py config.json
 ```
 
-The JSON configuration file should contain an `inputs` array listing the input paths:
+The JSON configuration file should contain an `inputs` array:
 
 ```json
 {
@@ -99,83 +118,68 @@ The JSON configuration file should contain an `inputs` array listing the input p
 }
 ```
 
-### Show help
+### View available options
 
 ```bash
 python postman.py --help
 ```
 
-## Command-Line Arguments
+## Command-line arguments
 
-| Argument | Description | Default |
-|---|---|---|
-| `inputs` | Zero or more GPX files, directories, glob patterns, or a JSON configuration file. | Searches `input/*.gpx` next to the script |
-| `-o`, `--out-dir` | Output directory for optimized GPX files. | `./output` |
-| `-p`, `--parallel` | Process multiple files in parallel when more than one task is pending. | Disabled |
-| `-w`, `--workers` | Number of parallel worker processes. | Number of CPUs reported by Python |
-| `-r`, `--resume` | Resume-related option declared by the CLI. See note below. | Disabled |
-| `-c`, `--clear-checkpoint` | Clear the saved checkpoint. If used without input files, exits after clearing. | Disabled |
-| `--checkpoint` | Enable checkpointing. | Enabled |
-| `--no-checkpoint` | Disable checkpointing. | — |
-| `--bridge-components` | Keep disconnected components and connect them using straight-line bridges. | Enabled |
-| `--drop-components` | Keep only the largest connected component; smaller components are excluded. | Disabled |
+| Argument | Description |
+|---|---|
+| `inputs` | Optional input paths: GPX files, directories, glob patterns, or a JSON configuration file. If omitted, the script searches `input/*.gpx` next to the script. |
+| `-o`, `--out-dir` | Output directory for optimized GPX files. |
+| `-p`, `--parallel` | Process multiple files in parallel when more than one task is pending. |
+| `-w`, `--workers` | Number of parallel worker processes. |
+| `-r`, `--resume` | Resume-related option declared by the CLI. See the implementation note below. |
+| `-c`, `--clear-checkpoint` | Clear the saved checkpoint. If used without input files, exits after clearing. |
+| `--checkpoint` | Enable checkpointing. |
+| `--no-checkpoint` | Disable checkpointing. |
+| `--bridge-components` | Keep disconnected components and connect them using straight-line bridges. |
+| `--drop-components` | Keep only the largest connected component. |
 
-> **Implementation note:** `--resume` is defined in the command-line parser, but the current main processing logic does not explicitly use this flag to change task selection.
+> **Implementation note:** `--resume` is defined by the command-line parser, but the current main processing logic does not explicitly use this flag to change task selection.
 
 ## Output
 
-Generated files are written to the selected output directory. Each output filename is prefixed with `optimized_`, for example:
+Optimized files are written to the selected output directory. Output filenames are prefixed with `optimized_`, for example:
 
 ```text
 output/
 └── optimized_route.gpx
 ```
 
-The exported GPX contains an optimized track. The script prints a summary including success status, route distance, processing time, and edge-validation counts.
+The output is a GPX track intended for use in compatible mapping and route-planning apps. Always check the route in your target app before relying on it for navigation.
 
-## Disconnected Components
+## Planned future support
 
-By default, the optimizer attempts to retain and connect disconnected components. It chooses a connection order using a nearest-component strategy and inserts straight-line links between selected points.
+The current workflow is GPX-based. I'd like to explore support for more formats in future releases, depending on what would be useful and practical to implement:
 
-To keep only the largest component:
+- **KML / KMZ** — useful for viewing and exchanging routes and geographic data with tools such as Google Earth.
+- **GeoJSON** — useful for working with road networks and geographic features in GIS tools.
+- **GeoPackage (GPKG)** — a common GIS format for storing spatial vector data.
+- **Shapefile** — useful for importing road-network data from GIS workflows.
+- **FIT** — a fitness-activity format that may be useful for interoperability with sports devices and apps, though route/course support would need to be handled carefully.
 
-```bash
-python postman.py ./routes/ --drop-components
-```
+These are ideas for future support, not features available in the current version. GPX remains the supported input/output format for the workflow described above.
 
-**Important:** Straight-line bridges may not follow real roads. The script reports when these links are added, so inspect the resulting GPX before using it for navigation.
+## Limitations
 
-## Checkpointing
-
-Checkpointing is enabled by default. Progress is stored in `.postman_checkpoint.json` next to the script.
-
-Disable checkpointing for a run:
-
-```bash
-python postman.py ./routes/ --no-checkpoint
-```
-
-Clear the saved checkpoint:
-
-```bash
-python postman.py --clear-checkpoint
-```
+- The tool processes the geometry present in the input data; it does not automatically retrieve missing streets from OpenStreetMap.
+- The quality of the result depends on the GPX export and how the source network is connected.
+- Straight-line bridges between disconnected components may not represent real streets.
+- The output may need to be checked or adjusted before importing it into a navigation or sports app.
+- The current validation output is a diagnostic aid, not a formal guarantee that every real-world street has been covered.
 
 ## Releases
 
 See the repository's [Releases](../../releases) page for published versions and release notes.
 
-## Limitations
-
-- The tool processes the geometry represented in the input GPX data; it does not fetch missing roads from an external map service.
-- When disconnected components are bridged, straight-line connections can be created that do not correspond to actual roads.
-- The route-validation implementation checks whether original coordinate-pair edges appear in the generated route. Treat its results as a diagnostic rather than a formal proof of complete geometric coverage.
-- Test the output GPX in your intended mapping or navigation software before relying on it.
-
 ---
 
 <div align="center">
 
-Made for precise GPX road-network processing.
+Made for my own street-mapping workflow — shared in case it helps yours, too.
 
 </div>
