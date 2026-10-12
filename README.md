@@ -59,12 +59,12 @@ The exact Overpass Turbo query depends on the area and the type of streets you w
 ## Installation
 
 1. Install Python 3.8 or newer.
-2. Install the dependency:
+2. Clone or download this repository.
+3. From the project directory, install the dependencies listed in `requirements.txt`:
 
    ```bash
    pip install -r requirements.txt
    ```
-3. Clone or download this repository.
 4. Put your GPX files in an input directory, or pass their paths to the script.
 
 ## Quick start
@@ -154,7 +154,7 @@ The output is a GPX track intended for use in compatible mapping and route-plann
 
 ## Planned future support
 
-The current workflow is GPX-based. I'd like to explore support for more formats in future releases, depending on what would be useful and practical to implement:
+The current workflow is GPX-based. I'd like to explore support for more formats in future versions, depending on what would be useful and practical to implement:
 
 - **KML / KMZ** — useful for viewing and exchanging routes and geographic data with tools such as Google Earth.
 - **GeoJSON** — useful for working with road networks and geographic features in GIS tools.
@@ -171,10 +171,6 @@ These are ideas for future support, not features available in the current versio
 - Straight-line bridges between disconnected components may not represent real streets.
 - The output may need to be checked or adjusted before importing it into a navigation or sports app.
 - The current validation output is a diagnostic aid, not a formal guarantee that every real-world street has been covered.
-
-## Releases
-
-See the repository's [Releases](../../releases) page for published versions and release notes.
 
 ---
 
