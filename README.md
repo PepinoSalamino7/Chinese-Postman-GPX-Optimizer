@@ -62,7 +62,7 @@ The exact Overpass Turbo query depends on the area and the type of streets you w
 2. Install the dependency:
 
    ```bash
-   pip install networkx
+   pip install -r requirements.txt
    ```
 3. Clone or download this repository.
 4. Put your GPX files in an input directory, or pass their paths to the script.
